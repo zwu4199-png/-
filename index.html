@@ -1,0 +1,609 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>印刷加工厂订单管理系统 V2.0</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f3f5f9;color:#27364a;font:14px Arial,"Microsoft YaHei",sans-serif}
+header{background:#173b63;color:white;padding:23px 30px}
+header h1{margin:0;font-size:23px}
+header p{color:#c5d5e8;margin:8px 0 0}
+main{max-width:1500px;margin:auto;padding:24px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:20px}
+.card,.panel{background:white;border-radius:10px;padding:19px;box-shadow:0 2px 10px #142c480a}
+.stat-title{color:#8995a6}
+.stat-number{font-size:28px;font-weight:bold;margin-top:10px}
+.toolbar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+input,select,textarea{width:100%;padding:10px;border:1px solid #dce2e9;border-radius:6px;font-size:14px;background:white;color:#27364a}
+button{border:0;border-radius:6px;padding:10px 15px;cursor:pointer;font-size:13px}
+.primary{background:#2367ad;color:white}
+.secondary{background:#edf1f6;color:#43536b}
+.danger{background:#fff0ee;color:#d14b42}
+.small{padding:6px 10px}
+.toolbar input{width:280px}
+table{width:100%;border-collapse:collapse;min-width:1050px}
+th,td{text-align:left;padding:13px 10px;border-bottom:1px solid #edf0f4;white-space:nowrap}
+th{background:#f8fafc;color:#7d899b}
+.table-wrap{overflow-x:auto}
+.status{padding:5px 9px;border-radius:20px;font-size:12px;background:#edf1f6}
+.s0{background:#f0ebff;color:#7755ba}
+.s1{background:#fff4df;color:#a8781e}
+.s2{background:#e7f2ff;color:#3477ba}
+.s3{background:#e5f6ed;color:#27845e}
+.s4{background:#e6f1ff;color:#2868a8}
+.s5{background:#e8f5e9;color:#36824c}
+.modal{display:none;position:fixed;inset:0;background:#0008;z-index:10;align-items:center;justify-content:center;padding:15px}
+.modal.show{display:flex}
+.dialog{background:white;border-radius:12px;padding:24px;width:650px;max-width:100%;max-height:92vh;overflow-y:auto}
+.dialog.wide{width:950px}
+.dialog h2{margin-top:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{display:flex;flex-direction:column;gap:7px}
+.field label{color:#53647b}
+.full{grid-column:1/-1}
+.buttons{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.section{border-top:1px solid #e9edf2;margin-top:22px;padding-top:18px}
+.section h3{font-size:16px;margin:0 0 13px}
+.info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.info{background:#f6f8fb;border-radius:7px;padding:12px}
+.info span{display:block;color:#8a96a7;font-size:12px;margin-bottom:7px}
+.info strong{word-break:break-all}
+.record{border:1px solid #e8edf3;border-radius:8px;padding:13px;margin:10px 0}
+.record-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.record p{color:#68788d;margin:8px 0 0}
+.muted{color:#8b97a8;font-size:12px}
+.actions{display:flex;gap:6px}
+.empty{text-align:center;padding:35px;color:#929eae}
+.file-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #eee}
+.file-name{word-break:break-all}
+.progress{height:9px;background:#e9edf3;border-radius:10px;overflow:hidden;margin:10px 0}
+.progress div{height:100%;background:#2676c4}
+.footer{text-align:center;color:#9aa5b5;padding:20px}
+@media(max-width:700px){
+ main{padding:13px}
+ header{padding:20px}
+ .stats{grid-template-columns:repeat(2,1fr)}
+ .grid,.info-grid{grid-template-columns:1fr}
+ .full{grid-column:auto}
+ .toolbar input{width:100%}
+}
+</style>
+</head>
+<body>
+
+<header>
+<h1>印刷加工厂订单管理系统</h1>
+<p>PRINTING FACTORY MANAGEMENT SYSTEM · V2.0</p>
+</header>
+
+<main>
+<section class="stats">
+ <div class="card"><div class="stat-title">订单总数</div><div class="stat-number" id="total">0</div></div>
+ <div class="card"><div class="stat-title">待制作图稿</div><div class="stat-number" id="pending">0</div></div>
+ <div class="card"><div class="stat-title">生产中</div><div class="stat-number" id="producing">0</div></div>
+ <div class="card"><div class="stat-title">已交货订单</div><div class="stat-number" id="delivered">0</div></div>
+</section>
+
+<section class="panel">
+ <div class="toolbar">
+  <div style="display:flex;gap:9px;flex-wrap:wrap">
+   <input id="search" placeholder="搜索订单编号、客户、产品..." oninput="render()">
+   <select id="filter" onchange="render()" style="width:160px">
+    <option value="">全部状态</option>
+    <option>待制作图稿</option><option>待确认</option>
+    <option>待印刷</option><option>生产中</option>
+    <option>已完成</option><option>已交货</option>
+   </select>
+  </div>
+  <div style="display:flex;gap:8px">
+   <button class="secondary" onclick="exportCSV()">导出Excel</button>
+   <button class="primary" onclick="openForm()">+ 新增订单</button>
+  </div>
+ </div>
+
+ <div class="table-wrap">
+ <table>
+ <thead>
+ <tr>
+ <th>订单编号</th><th>客户名称</th><th>产品名称</th>
+ <th>材料</th><th>尺寸</th><th>数量</th>
+ <th>交货日期</th><th>负责人</th><th>状态</th><th>操作</th>
+ </tr>
+ </thead>
+ <tbody id="orderList"></tbody>
+ </table>
+ </div>
+ <div id="empty" class="empty">暂无订单，请新增订单</div>
+</section>
+</main>
+
+<div class="footer">印刷加工厂管理系统 V2.0</div>
+
+<!-- 订单新增编辑 -->
+<div class="modal" id="formModal">
+<div class="dialog">
+<h2 id="formTitle">新增订单</h2>
+<form id="orderForm">
+<div class="grid">
+ <div class="field"><label>订单编号 *</label><input id="orderNo" required></div>
+ <div class="field"><label>客户名称 *</label><input id="customer" required></div>
+ <div class="field"><label>产品名称 *</label><input id="product" required></div>
+ <div class="field"><label>印刷材料</label>
+ <select id="material">
+ <option>铜版纸</option><option>热敏纸</option><option>PET</option>
+ <option>PVC</option><option>哑银纸</option><option>亮银纸</option>
+ <option>白卡纸</option><option>牛皮纸</option><option>其他</option>
+ </select></div>
+ <div class="field"><label>印刷尺寸</label><input id="size" placeholder="50 × 30 mm"></div>
+ <div class="field"><label>印刷数量 *</label><input id="quantity" type="number" min="1" required></div>
+ <div class="field"><label>订单接收日期 *</label><input id="receiveDate" type="date" required></div>
+ <div class="field"><label>交货日期 *</label><input id="deliveryDate" type="date" required></div>
+ <div class="field"><label>负责人</label><input id="manager"></div>
+ <div class="field"><label>订单状态</label>
+ <select id="status">
+ <option>待制作图稿</option><option>待确认</option>
+ <option>待印刷</option><option>生产中</option>
+ <option>已完成</option><option>已交货</option>
+ </select></div>
+</div>
+<div class="buttons">
+<button type="button" class="secondary" onclick="closeForm()">取消</button>
+<button type="submit" class="primary">保存订单</button>
+</div>
+</form>
+</div>
+</div>
+
+<!-- 订单详情 -->
+<div class="modal" id="detailModal">
+<div class="dialog wide">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+<h2>订单详情</h2>
+<button class="secondary" onclick="closeDetail()">关闭</button>
+</div>
+<div id="detailContent"></div>
+</div>
+</div>
+
+<script>
+const STATUSES=["待制作图稿","待确认","待印刷","生产中","已完成","已交货"];
+const $=id=>document.getElementById(id);
+
+let orders=JSON.parse(localStorage.getItem("printingOrdersV2")||"[]");
+let editingId=null;
+let currentId=null;
+
+function today(){
+ return new Date().toLocaleDateString("sv-SE");
+}
+function uid(){
+ return crypto.randomUUID();
+}
+function safe(v){
+ return String(v??"").replace(/[&<>"']/g,c=>({
+ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+ })[c]);
+}
+function save(){
+ localStorage.setItem("printingOrdersV2",JSON.stringify(orders));
+}
+function statusClass(s){
+ return "s"+STATUSES.indexOf(s);
+}
+function getOrder(id){
+ return orders.find(o=>o.id===id);
+}
+function render(){
+ const keyword=$("search").value.toLowerCase();
+ const filter=$("filter").value;
+
+ const list=orders.filter(o=>{
+  const matches=[o.orderNo,o.customer,o.product]
+   .some(v=>(v||"").toLowerCase().includes(keyword));
+  return matches&&(!filter||o.status===filter);
+ });
+
+ $("orderList").innerHTML=list.map(o=>`
+ <tr>
+ <td><b>${safe(o.orderNo)}</b></td>
+ <td>${safe(o.customer)}</td>
+ <td>${safe(o.product)}</td>
+ <td>${safe(o.material)}</td>
+ <td>${safe(o.size)}</td>
+ <td>${Number(o.quantity).toLocaleString()}</td>
+ <td>${safe(o.deliveryDate)}</td>
+ <td>${safe(o.manager)}</td>
+ <td><span class="status ${statusClass(o.status)}">${safe(o.status)}</span></td>
+ <td><div class="actions">
+ <button class="primary small" onclick="openDetail('${o.id}')">详情</button>
+ <button class="secondary small" onclick="editOrder('${o.id}')">编辑</button>
+ <button class="danger small" onclick="deleteOrder('${o.id}')">删除</button>
+ </div></td>
+ </tr>`).join("");
+
+ $("empty").style.display=list.length?"none":"block";
+ $("total").textContent=orders.length;
+ $("pending").textContent=orders.filter(o=>o.status==="待制作图稿").length;
+ $("producing").textContent=orders.filter(o=>o.status==="生产中").length;
+ $("delivered").textContent=orders.filter(o=>o.status==="已交货").length;
+}
+
+function openForm(){
+ editingId=null;
+ $("orderForm").reset();
+ $("formTitle").textContent="新增印刷订单";
+ $("orderNo").value="PO-"+today().replace(/-/g,"")+"-"+String(Date.now()).slice(-4);
+ $("receiveDate").value=today();
+ $("status").value="待制作图稿";
+ $("formModal").classList.add("show");
+}
+function closeForm(){
+ $("formModal").classList.remove("show");
+}
+function editOrder(id){
+ const o=getOrder(id);
+ if(!o)return;
+ editingId=id;
+ ["orderNo","customer","product","material","size","quantity","receiveDate","deliveryDate","manager","status"]
+ .forEach(k=>$(k).value=o[k]??"");
+ $("formTitle").textContent="编辑印刷订单";
+ $("formModal").classList.add("show");
+}
+$("orderForm").addEventListener("submit",e=>{
+ e.preventDefault();
+ const data={};
+ ["orderNo","customer","product","material","size","quantity","receiveDate","deliveryDate","manager","status"]
+ .forEach(k=>data[k]=$(k).value.trim());
+
+ if(data.deliveryDate<data.receiveDate){
+  alert("交货日期不能早于接收日期");return;
+ }
+ if(orders.some(o=>o.orderNo===data.orderNo&&o.id!==editingId)){
+  alert("订单编号已存在");return;
+ }
+
+ if(editingId){
+  orders=orders.map(o=>o.id===editingId?{...o,...data}:o);
+ }else{
+  orders.unshift({id:uid(),...data,versions:[],production:[],deliveries:[]});
+ }
+ save();render();closeForm();
+ alert("保存成功");
+});
+function deleteOrder(id){
+ if(!confirm("确定删除订单吗？订单关联的文件和记录也将失去关联。"))return;
+ orders=orders.filter(o=>o.id!==id);
+ save();render();
+}
+
+/* IndexedDB：用于保存真正的附件文件 */
+let db;
+const dbReady=new Promise((resolve,reject)=>{
+ const request=indexedDB.open("PrintingFactoryFiles",1);
+ request.onupgradeneeded=()=>{
+  const d=request.result;
+  if(!d.objectStoreNames.contains("files"))
+   d.createObjectStore("files",{keyPath:"id"});
+ };
+ request.onsuccess=()=>{db=request.result;resolve(db)};
+ request.onerror=()=>reject(request.error);
+});
+async function storeFile(file){
+ await dbReady;
+ return new Promise((resolve,reject)=>{
+  const tx=db.transaction("files","readwrite");
+  const id=uid();
+  tx.objectStore("files").put({id,file});
+  tx.oncomplete=()=>resolve(id);
+  tx.onerror=()=>reject(tx.error);
+ });
+}
+async function getFile(id){
+ await dbReady;
+ return new Promise((resolve,reject)=>{
+  const tx=db.transaction("files","readonly");
+  const req=tx.objectStore("files").get(id);
+  req.onsuccess=()=>resolve(req.result?.file);
+  req.onerror=()=>reject(req.error);
+ });
+}
+async function removeFile(id){
+ if(!id)return;
+ await dbReady;
+ const tx=db.transaction("files","readwrite");
+ tx.objectStore("files").delete(id);
+}
+async function downloadFile(id,name){
+ const file=await getFile(id);
+ if(!file){alert("找不到文件");return}
+ const url=URL.createObjectURL(file);
+ const a=document.createElement("a");
+ a.href=url;a.download=name;a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+/* 订单详情页面 */
+function openDetail(id){
+ currentId=id;
+ const o=getOrder(id);
+ if(!o)return;
+ if(!o.versions)o.versions=[];
+ if(!o.production)o.production=[];
+ if(!o.deliveries)o.deliveries=[];
+
+ const delivered=o.deliveries.reduce((s,d)=>s+Number(d.qty),0);
+ const total=Number(o.quantity);
+ const remaining=Math.max(0,total-delivered);
+ const percent=total?Math.min(100,delivered/total*100):0;
+
+ $("detailContent").innerHTML=`
+ <div class="section">
+ <h3>一、订单基本信息</h3>
+ <div class="info-grid">
+ ${info("订单编号",o.orderNo)}
+ ${info("客户名称",o.customer)}
+ ${info("产品名称",o.product)}
+ ${info("印刷材料",o.material)}
+ ${info("印刷尺寸",o.size)}
+ ${info("订单数量",total.toLocaleString())}
+ ${info("接收日期",o.receiveDate)}
+ ${info("交货日期",o.deliveryDate)}
+ ${info("负责人",o.manager)}
+ </div>
+ <p style="margin-top:15px">当前状态：
+ <select id="detailStatus" style="width:170px">
+ ${STATUSES.map(s=>`<option ${o.status===s?"selected":""}>${s}</option>`).join("")}
+ </select>
+ <button class="primary small" onclick="updateStatus()">更新状态</button>
+ </p>
+ </div>
+
+ <div class="section">
+ <h3>二、图稿文件及版本管理</h3>
+ <p class="muted">支持 PSD、PDF、JPG、PNG、AI 等格式。每次上传都会生成一个独立版本。</p>
+ <div class="grid">
+ <div class="field"><label>版本名称</label>
+ <select id="versionName">
+ <option>初稿</option><option>修改稿</option>
+ <option>最终确认稿</option><option>其他版本</option>
+ </select></div>
+ <div class="field"><label>上传图稿</label>
+ <input type="file" id="artworkFile" accept=".psd,.pdf,.jpg,.jpeg,.png,.ai,.eps,.tif,.tiff,.svg"></div>
+ <div class="field full"><label>修改说明</label>
+ <input id="versionNote" placeholder="例如：根据客户要求修改标签尺寸"></div>
+ </div>
+ <button class="primary" style="margin-top:12px" onclick="uploadVersion()">上传图稿版本</button>
+ <div id="versionList"></div>
+ </div>
+
+ <div class="section">
+ <h3>三、生产进度记录</h3>
+ <div class="grid">
+ <div class="field"><label>生产环节</label>
+ <select id="productionStage">
+ <option>图稿制作</option><option>图稿确认</option>
+ <option>印刷</option><option>模切</option>
+ <option>裁切</option><option>质检</option>
+ <option>包装</option><option>其他</option>
+ </select></div>
+ <div class="field"><label>本次完成数量</label>
+ <input id="productionQty" type="number" min="0" value="0"></div>
+ <div class="field"><label>操作人员</label><input id="productionPerson" placeholder="员工姓名"></div>
+ <div class="field"><label>记录日期</label><input id="productionDate" type="date" value="${today()}"></div>
+ <div class="field full"><label>生产备注</label><textarea id="productionNote" rows="2" placeholder="记录生产情况、异常情况等"></textarea></div>
+ </div>
+ <button class="primary" style="margin-top:12px" onclick="addProduction()">新增生产记录</button>
+ <div id="productionList"></div>
+ </div>
+
+ <div class="section">
+ <h3>四、分批交货管理</h3>
+ <div class="info-grid">
+ ${info("订单总数量",total.toLocaleString())}
+ ${info("累计交货数量",delivered.toLocaleString())}
+ ${info("剩余待交数量",remaining.toLocaleString())}
+ </div>
+ <div class="progress"><div style="width:${percent}%"></div></div>
+ <p class="muted">累计交货进度：${percent.toFixed(1)}%</p>
+ <div class="grid">
+ <div class="field"><label>本次交货数量</label><input id="deliveryQty" type="number" min="1"></div>
+ <div class="field"><label>交货日期</label><input id="deliveryDate" type="date" value="${today()}"></div>
+ <div class="field"><label>交货方式 / 物流</label><input id="deliveryMethod" placeholder="例如：送货、顺丰"></div>
+ <div class="field"><label>经办人</label><input id="deliveryPerson" placeholder="经办人姓名"></div>
+ <div class="field full"><label>交货备注</label><input id="deliveryNote" placeholder="例如：第一批交货，附送样品"></div>
+ </div>
+ <button class="primary" style="margin-top:12px" onclick="addDelivery()">登记本次交货</button>
+ <div id="deliveryList"></div>
+ </div>
+ `;
+
+ $("detailModal").classList.add("show");
+ renderRecords(o);
+}
+function info(k,v){
+ return `<div class="info"><span>${safe(k)}</span><strong>${safe(v||"-")}</strong></div>`;
+}
+function closeDetail(){
+ $("detailModal").classList.remove("show");
+ render();
+}
+function updateStatus(){
+ const o=getOrder(currentId);
+ if(!o)return;
+ o.status=$("detailStatus").value;
+ save();render();
+ alert("订单状态已更新");
+}
+
+/* 图稿版本 */
+async function uploadVersion(){
+ const o=getOrder(currentId);
+ const file=$("artworkFile").files[0];
+ if(!file){alert("请先选择图稿文件");return}
+ if(file.size>30*1024*1024){
+  alert("单个文件不能超过30MB，请压缩后上传");return;
+ }
+ try{
+  const fileId=await storeFile(file);
+  o.versions.push({
+   id:uid(),name:$("versionName").value,
+   fileName:file.name,fileId,
+   note:$("versionNote").value,
+   date:new Date().toLocaleString("zh-CN"),
+   final:false
+  });
+  $("artworkFile").value="";
+  $("versionNote").value="";
+  save();renderRecords(o);
+  alert("图稿上传成功");
+ }catch(e){alert("文件保存失败："+e.message)}
+}
+function renderRecords(o){
+ $("versionList").innerHTML=o.versions.length?
+ o.versions.map(v=>`
+ <div class="record">
+ <div class="record-head">
+ <b>${safe(v.name)} ${v.final?'<span class="status s5">最终版本</span>':""}</b>
+ <span class="muted">${safe(v.date)}</span>
+ </div>
+ <p>文件：${safe(v.fileName)}</p>
+ <p>${safe(v.note)}</p>
+ <div class="actions" style="margin-top:10px">
+ <button class="secondary small" onclick="downloadFile('${v.fileId}','${safe(v.fileName).replace(/'/g,"&#39;")}')">下载文件</button>
+ <button class="secondary small" onclick="setFinal('${v.id}')">设为最终版本</button>
+ <button class="danger small" onclick="deleteVersion('${v.id}')">删除</button>
+ </div>
+ </div>`).join("")
+ :'<p class="muted">暂无图稿版本</p>';
+
+ $("productionList").innerHTML=o.production.length?
+ o.production.map(p=>`
+ <div class="record">
+ <div class="record-head"><b>${safe(p.stage)}</b><span class="muted">${safe(p.date)}</span></div>
+ <p>完成数量：${Number(p.qty).toLocaleString()}　操作人员：${safe(p.person)}</p>
+ <p>${safe(p.note)}</p>
+ <button class="danger small" onclick="deleteRecord('production','${p.id}')">删除记录</button>
+ </div>`).join("")
+ :'<p class="muted">暂无生产记录</p>';
+
+ const delivered=o.deliveries.reduce((s,d)=>s+Number(d.qty),0);
+ const remaining=Math.max(0,Number(o.quantity)-delivered);
+ const percent=Number(o.quantity)?Math.min(100,delivered/Number(o.quantity)*100):0;
+ $("detailContent").querySelector(".section:nth-of-type(4)")?.remove();
+ // 更新交货区域
+ const sections=$("detailContent").querySelectorAll(".section");
+ const deliverySection=sections[3];
+ if(deliverySection){
+  deliverySection.innerHTML=`
+  <h3>四、分批交货管理</h3>
+  <div class="info-grid">
+  ${info("订单总数量",Number(o.quantity).toLocaleString())}
+  ${info("累计交货数量",delivered.toLocaleString())}
+  ${info("剩余待交数量",remaining.toLocaleString())}
+  </div>
+  <div class="progress"><div style="width:${percent}%"></div></div>
+  <p class="muted">累计交货进度：${percent.toFixed(1)}%</p>
+  <div class="grid">
+  <div class="field"><label>本次交货数量</label><input id="deliveryQty" type="number" min="1"></div>
+  <div class="field"><label>交货日期</label><input id="deliveryDate" type="date" value="${today()}"></div>
+  <div class="field"><label>交货方式 / 物流</label><input id="deliveryMethod" placeholder="例如：送货、顺丰"></div>
+  <div class="field"><label>经办人</label><input id="deliveryPerson"></div>
+  <div class="field full"><label>交货备注</label><input id="deliveryNote"></div>
+  </div>
+  <button class="primary" style="margin-top:12px" onclick="addDelivery()">登记本次交货</button>
+  <div id="deliveryList"></div>`;
+ }
+ $("deliveryList").innerHTML=o.deliveries.length?
+ o.deliveries.map(d=>`
+ <div class="record">
+ <div class="record-head"><b>交货 ${Number(d.qty).toLocaleString()} 件</b><span class="muted">${safe(d.date)}</span></div>
+ <p>方式：${safe(d.method)}　经办人：${safe(d.person)}</p>
+ <p>${safe(d.note)}</p>
+ <button class="danger small" onclick="deleteRecord('delivery','${d.id}')">删除记录</button>
+ </div>`).join("")
+ :'<p class="muted">暂无交货记录</p>';
+}
+function setFinal(id){
+ const o=getOrder(currentId);
+ o.versions.forEach(v=>v.final=v.id===id);
+ save();renderRecords(o);
+}
+async function deleteVersion(id){
+ if(!confirm("确定删除这个图稿版本吗？"))return;
+ const o=getOrder(currentId);
+ const v=o.versions.find(x=>x.id===id);
+ if(v)await removeFile(v.fileId);
+ o.versions=o.versions.filter(x=>x.id!==id);
+ save();renderRecords(o);
+}
+
+/* 生产记录 */
+function addProduction(){
+ const o=getOrder(currentId);
+ const qty=Number($("productionQty").value);
+ if(qty<0){alert("数量不能为负数");return}
+ o.production.push({
+  id:uid(),stage:$("productionStage").value,
+  qty,person:$("productionPerson").value,
+  date:$("productionDate").value,
+  note:$("productionNote").value
+ });
+ save();renderRecords(o);
+ $("productionQty").value=0;
+ $("productionNote").value="";
+}
+
+/* 交货记录 */
+function addDelivery(){
+ const o=getOrder(currentId);
+ const qty=Number($("deliveryQty").value);
+ const delivered=o.deliveries.reduce((s,d)=>s+Number(d.qty),0);
+ const remaining=Number(o.quantity)-delivered;
+ if(!qty||qty<1){alert("请输入正确的交货数量");return}
+ if(qty>remaining){alert("交货数量超过剩余订单数量！剩余："+remaining);return}
+ o.deliveries.push({
+  id:uid(),qty,
+  date:$("deliveryDate").value,
+  method:$("deliveryMethod").value,
+  person:$("deliveryPerson").value,
+  note:$("deliveryNote").value
+ });
+ const total=o.deliveries.reduce((s,d)=>s+Number(d.qty),0);
+ if(total>=Number(o.quantity))o.status="已交货";
+ else if(total>0)o.status="已完成";
+ save();render();openDetail(currentId);
+ alert("交货记录保存成功");
+}
+
+/* 删除生产或交货记录 */
+function deleteRecord(type,id){
+ if(!confirm("确定删除该记录吗？"))return;
+ const o=getOrder(currentId);
+ const key=type==="production"?"production":"deliveries";
+ o[key]=o[key].filter(x=>x.id!==id);
+ save();renderRecords(o);
+}
+
+/* Excel可打开的CSV */
+function exportCSV(){
+ const headers=["订单编号","客户名称","产品名称","材料","尺寸","订单数量","接收日期","交货日期","负责人","状态","累计交货","剩余数量"];
+ const keys=["orderNo","customer","product","material","size","quantity","receiveDate","deliveryDate","manager","status"];
+ const rows=orders.map(o=>{
+  const delivered=(o.deliveries||[]).reduce((s,d)=>s+Number(d.qty),0);
+  return [...keys.map(k=>o[k]??""),delivered,Math.max(0,Number(o.quantity)-delivered)]
+   .map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",");
+ });
+ const blob=new Blob(["\uFEFF"+headers.join(",")+"\n"+rows.join("\n")],{type:"text/csv;charset=utf-8"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;a.download="印刷厂订单数据.csv";a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+render();
+</script>
+</body>
+</html>
